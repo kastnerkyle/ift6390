@@ -91,7 +91,7 @@ for n, n_components in enumerate(n_components_list):
     loglikelihood = lognorm_pdf(X, means, covs)
     total_ll = loglikelihood.sum()
     axarr[n].set_title("n_components %i\n init log-L %4f\n final log-L %4f" % (
-        n, init_ll, total_ll))
+        n_components, init_ll, total_ll))
 
     axarr[n].scatter(X[:, 0], X[:, 1], c="steelblue", alpha=0.4)
     for i in range(len(means)):
