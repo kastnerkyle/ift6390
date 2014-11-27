@@ -1,8 +1,28 @@
 import numpy as np
 from data import load_faithful
 from scipy import linalg
-import numpy as np
 import matplotlib.pyplot as plt
+
+
+def plot_gaussian(mean, cov, color="darkred", subplot_ref=None):
+    """
+    Plot a 2D gaussian with given mean and covariance.
+    Based on code form Roland Memisevic.
+    """
+    t = np.arange(-np.pi, np.pi, 0.01)
+    x = np.sin(t)[:, None]
+    y = np.cos(t)[:, None]
+
+    D, V = linalg.eigh(cov)
+    A = np.real(np.dot(V, np.diag(np.sqrt(D))).T)
+    z = np.dot(np.hstack([x, y]), A)
+
+    if subplot_ref is not None:
+        p = subplot_ref
+    else:
+        p = plt
+    p.plot(z[:, 0] + mean[:, 0], z[:, 1] + mean[:, 1], linewidth=2, color=color)
+    p.plot(np.array([mean[:, 0]]), np.array([mean[:, 1]]), color=color)
 
 
 def lognorm_pdf(X, means, covars, min_covar=1.e-7):
@@ -44,10 +64,9 @@ def maximization_step(X, means, covs, weights, responsibilities):
 
 
 random_state = np.random.RandomState(1999)
-n_components = 2
-n_dim = 2
-
 X = load_faithful()
+
+n_components = 2
 means = []
 covs = []
 weights = np.ones((n_components)) / float(n_components)
@@ -66,5 +85,7 @@ for i in range(n_iter):
 plt.scatter(X[:, 0], X[:, 1], c="steelblue", alpha=0.4)
 plt.scatter(means[0][:, 0], means[0][:, 1], c="darkred")
 plt.scatter(means[1][:, 0], means[1][:, 1], c="darkred")
+plot_gaussian(means[0], covs[0], color="darkred")
+plot_gaussian(means[1], covs[1], color="darkred")
 plt.show()
 from IPython import embed; embed()
