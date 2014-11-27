@@ -4,10 +4,10 @@ from scipy import linalg
 import matplotlib.pyplot as plt
 
 
-def plot_gaussian(mean, cov, color="darkred", subplot_ref=None):
+def plot_covariance(mean, cov, color="darkred", subplot_ref=None):
     """
     Plot a 2D gaussian with given mean and covariance.
-    Based on code form Roland Memisevic.
+    Based on code from Roland Memisevic.
     """
     t = np.arange(-np.pi, np.pi, 0.01)
     x = np.sin(t)[:, None]
@@ -22,7 +22,6 @@ def plot_gaussian(mean, cov, color="darkred", subplot_ref=None):
     else:
         p = plt
     p.plot(z[:, 0] + mean[:, 0], z[:, 1] + mean[:, 1], linewidth=2, color=color)
-    p.plot(np.array([mean[:, 0]]), np.array([mean[:, 1]]), color=color)
 
 
 def lognorm_pdf(X, means, covars, min_covar=1.e-7):
@@ -65,27 +64,38 @@ def maximization_step(X, means, covs, weights, responsibilities):
 
 random_state = np.random.RandomState(1999)
 X = load_faithful()
+n_components_list = [2, 3, 5]
+f, axarr = plt.subplots(1, len(n_components_list))
+for n, n_components in enumerate(n_components_list):
+    means = []
+    covs = []
+    weights = np.ones((n_components)) / float(n_components)
+    n_iter = 1000
 
-n_components = 2
-means = []
-covs = []
-weights = np.ones((n_components)) / float(n_components)
-n_iter = 1000
+    loglikelihood = lognorm_pdf(X, [np.array([0, 0])] * n_components,
+                                     [np.identity(X.shape[1])] * n_components)
+    init_ll = loglikelihood.sum()
 
-for i in range(n_components):
-    mean = X[random_state.randint(0, len(X))]
-    means.append(mean)
-    cov = np.cov(X.T)
-    covs.append(cov)
+    for i in range(n_components):
+        mean = X[random_state.randint(0, len(X))]
+        means.append(mean)
+        rs = random_state.rand(X.shape[1], X.shape[1])
+        cov = np.eye(X.shape[1])
+        cov += random_state.rand(*cov.shape)
+        covs.append(cov)
 
-for i in range(n_iter):
-    likelihood, responsibilities = expectation_step(X, means, covs, weights)
-    means, covs, weights = maximization_step(X, means, covs, weights, responsibilities)
+    for i in range(n_iter):
+        likelihood, responsibilities = expectation_step(X, means, covs, weights)
+        means, covs, weights = maximization_step(X, means, covs, weights, responsibilities)
 
-plt.scatter(X[:, 0], X[:, 1], c="steelblue", alpha=0.4)
-plt.scatter(means[0][:, 0], means[0][:, 1], c="darkred")
-plt.scatter(means[1][:, 0], means[1][:, 1], c="darkred")
-plot_gaussian(means[0], covs[0], color="darkred")
-plot_gaussian(means[1], covs[1], color="darkred")
+    loglikelihood = lognorm_pdf(X, means, covs)
+    total_ll = loglikelihood.sum()
+    axarr[n].set_title("n_components %i\n init log-L %4f\n final log-L %4f" % (
+        n, init_ll, total_ll))
+
+    axarr[n].scatter(X[:, 0], X[:, 1], c="steelblue", alpha=0.4)
+    for i in range(len(means)):
+        axarr[n].plot(means[i][:, 0], means[i][:, 1], color="darkred")
+        plot_covariance(means[i], covs[i], color="darkred",
+                        subplot_ref=axarr[n])
 plt.show()
-from IPython import embed; embed()
