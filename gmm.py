@@ -73,13 +73,12 @@ for n, n_components in enumerate(n_components_list):
     n_iter = 1000
 
     loglikelihood = lognorm_pdf(X, [np.array([0, 0])] * n_components,
-                                     [np.identity(X.shape[1])] * n_components)
+                                   [np.identity(X.shape[1])] * n_components)
     init_ll = loglikelihood.sum()
 
     for i in range(n_components):
         mean = X[random_state.randint(0, len(X))]
         means.append(mean)
-        rs = random_state.rand(X.shape[1], X.shape[1])
         cov = np.eye(X.shape[1])
         cov += random_state.rand(*cov.shape)
         covs.append(cov)

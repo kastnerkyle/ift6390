@@ -1,0 +1,206 @@
+\documentclass{article} % For LaTeX2e
+\usepackage{nips13submit_e,times}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\usepackage{url}
+%\documentstyle[nips13submit_09,times,art10]{article} % For LaTeX 2.09
+
+\title{Speech Generation with Recurrent Neural Networks}
+
+\author{
+Kyle Kastner\\
+Département d’Informatique et de Recherche Opérationnelle\\
+Université de Montréal, 2920 Chemin de la Tour, suite 2194,\\
+Montréal (QC), H3T 1J4, Canada\\
+\texttt{kastnerkyle@gmail.com} \\
+}
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to \LaTeX{} to determine where to break
+% the lines. Using \AND forces a linebreak at that point. So, if \LaTeX{}
+% puts 3 of 4 authors names on the first line, and the last on the second
+% line, try using \AND instead of \And before the third author name.
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+\nipsfinalcopy % Uncomment for camera-ready version
+
+\begin{document}
+
+
+\maketitle
+
+\begin{abstract}
+There are a wide variety of input 
+representations and models used in speech
+synthesis, with may research contributions from computer science, electrical
+engineering, and statistics. One of the most promising models for capturing the
+complex dynamics of speech is the recurrent neural network,
+which holds state of the art results for the TIMIT speech recognition
+task as well as many other complex time series problems. This paper will
+discuss the particular concerns of applying recurrent neural networks to
+perform speech generation, including datasets,
+input representation, and modeling with recurrent neural networks.
+\end{abstract}
+
+\section{Outline}
+The subsections below will
+give a small introduction of the topics to be covered, with full coverage
+reserved for the relevant section of the paper.
+
+\subsection{Datasets}
+Several datasets were used to evaluate this pipeline: speech data from the
+TIMIT dataset, speech data from the LibriSpeech dataset, and onomatopeaia
+sounds such as screams, moans, and whimpers from a proprietary dataset.
+
+\subsection{Input Representations}
+One of the most important parts of any machine learning pipeline is the
+representation of the input. For speech synthesis, three different
+representations were used: Linear Predictive Coding (LPC), sine wave
+analysis, and raw input. 
+
+\subsection{Recurrent Neural Network Architectures}
+Recurrent neural networks, like feedforward networks, have a staggering
+number of possible configurations and hyperparameters. This work will focus on the
+specific set of hyperparamters used for sequence generation,
+as well as the unique difficulties in training such an architecture.
+
+\section{Datasets}
+Finding suitable datasets is one of the most difficult (though unheralded) 
+problems in machine learning. Good speech datasets are particularly difficult
+to find, since most corpora of labeled speech come from 
+large corporations. These collections often hold identifying information from a large number of
+people and are very expensive to label, store, and curate.
+\par
+In this paper, the following qualifiers were used to select the datasets.
+\begin{itemize}
+    \item The data is well organized, with logical folder structure and naming conventions.
+    \item The data is well documented, with README files or research reports detailing the collection enivronment.
+    \item Examples are diverse, and span the range of conditions expected in "real world" usage. 
+    \item The default resolution of examples is very high quality, and as close to "unprocessed" as possible.
+\end{itemize}
+
+Until very recently
+with the release of the LibriSpeech dataset, most speech research
+focused on the semi-public TIMIT dataset, with results on larger private
+datasets which often change from publication to publication. In this research,
+three primary datasets were used: the open and free LibriSpeech dataset,
+the open but non-free TIMIT dataset, and a proprietary dataset of onomatopaeia
+sounds, referenced hereafter as Ono.
+\subsection{TIMIT}
+The TIMIT dataset is one of the most widely cited sets in speech processing research.
+Though fairly small by recent standards, the TIMIT dataset features readings from 630 different speakers, with 10 different recordings from each speaker. The raw audio is stored as 16-bit, 16000 Hz wav files. It also features time-aligned orthographic, phonetic, and word labelings for
+each of the examples in the dataset. The labels and utterances have been hand verified by a number of researchers, and are considered to be the standard as far as audio and label granularity are concerned. The major downside to the TIMIT dataset is that it is non-free,
+requiring a fairly substantial license fee to use. This can be prohibitive
+for experimental research, or exploration by researchers whose primary focus
+is not speech.
+\subsection{LibriSpeech}
+LibriSpeech is a new dataset published by researchers at
+John Hopkins University. It is much larger than TIMIT, with approximately
+1000 hours of recorded speech, with sentence level alignment and associated
+text. The audio is formatted as 16-bit, 16000 Hz arff files, and is very
+similar to TIMIT. It is free to use under the Creative Commons 4.0 license.
+The primary drawback to using LibriSpeech is the granularty of labels and
+tags, as sentence level alignment may not be sufficient for many speech
+recognition tasks. For the purposes of unonditioned speech generation
+this is not a problem.
+\subsection{Ono}
+Ono is a proprietary dataset of onomatopaeia sounds such as grunts,
+yells, cries, groans and whimpers under various types of emotional
+distress like pain, anger, and excitement. The audio is formatted as 16-bit,
+16000 Hz wav files, and is of the same quality as TIMIT and LibriSpeech.
+The label information is contained in the filename, which is largely what
+category (pain, angry, etc.) and a 1-5 scale "level of emotion".
+This data is fairly different from standard speech, due to the large amount
+of non-harmonic sound, often called unvoiced speech, present. However, it
+is very useful to show the applicability of recurrent neural networks to more
+than just standard speech tasks. Unfortunately, Ono is a proprietary
+dataset, and as such it will be difficult for other to reproduce these results.
+
+\section{Input Representations}
+How the data is formatted before being processed by the recurrent neural
+network is crucial. Subtle differences in input representation from things
+like mean centering, variance normalization, or removing correlation 
+through transformations can be the difference between sucess and failure. For
+the task of speech generation, there were three primary techniques
+used: "raw" input (mean centered and normalized as floating point from 0-1),
+sinusoidal modeling, and Linear Predictive Coding (LPC).
+\par
+To understand how each of these methods transforms the input, it is first
+necessary to understand a bit about the particulars of recorded speech. While
+deep understanding of speech is a field of study to itself, there are a few
+crucial details which make speech unique, and many of the input 
+transformations used will exploit these details in some way.
+\par
+The building blocks of speech sounds are called phonemes - these are tiny
+"sub-words" that are combined to make different words. Depending on which
+phoneme is spoken, a segment of speech (sometimes called a frame) is considered
+to be "voiced" or "unvoiced". The primary difference between these two
+categories is that voiced speech has a very rich harmonic structure,
+and is fairly straight forward to model. This includes sounds such as
+"ooo" and "aaah". Unvoiced speech, on the other hand, includes silence,
+growls, and explosive phonemes like "puh", "tuh", and "chk". These sounds
+are typically more difficult to model, due to both the rapid onset of the
+sounds and the brief duration relative to the voiced component. 
+\par
+The Ono
+dataset has a much higher density of unvoiced sounds relative to voiced than
+standard speech, and this is one of the reasons we see it as a more
+difficult task. The volume of speech and how it changes over time (called the
+envelope) is also very important, as well as the duration and rhythm of
+silences. In fact, properly modeling just the envelope and silences can
+create something that is surprisingly speech-like, even if the content
+itself is white-noise or something as basic as a summation of a small number
+of sine waves.
+
+\subsection{Headings: second level}
+
+Second level headings are lower case (except for first word and proper nouns),
+flush left, bold and in point size 10. One line space before the second level
+heading and 1/2~line space after the second level heading.
+
+\subsubsection{Headings: third level}
+
+Third level headings are lower case (except for first word and proper nouns),
+flush left, bold and in point size 10. One line space before the third level
+heading and 1/2~line space after the third level heading.
+
+\section{Recurrent Architectures}
+\section{Results}
+\section{Conclusion}
+
+\section*{Acknowledgments}
+
+Use unnumbered third level headings for the acknowledgments. All
+acknowledgments go at the end of the paper. Do not include 
+acknowledgments in the anonymized submission, only in the 
+final paper. 
+
+\section*{References}
+
+References follow the acknowledgments. Use unnumbered third level heading for
+the references. Any choice of citation style is acceptable as long as you are
+consistent. It is permissible to reduce the font size to `small' (9-point) 
+when listing the references. {\bf Remember that this year you can use
+a ninth page as long as it contains \emph{only} cited references.}
+
+\small{
+[1] Alexander, J.A. \& Mozer, M.C. (1995) Template-based algorithms
+for connectionist rule extraction. In G. Tesauro, D. S. Touretzky
+and T.K. Leen (eds.), {\it Advances in Neural Information Processing
+Systems 7}, pp. 609-616. Cambridge, MA: MIT Press.
+
+[2] Bower, J.M. \& Beeman, D. (1995) {\it The Book of GENESIS: Exploring
+Realistic Neural Models with the GEneral NEural SImulation System.}
+New York: TELOS/Springer-Verlag.
+
+[3] Hasselmo, M.E., Schnell, E. \& Barkai, E. (1995) Dynamics of learning
+and recall at excitatory recurrent synapses and cholinergic modulation
+in rat hippocampal region CA3. {\it Journal of Neuroscience}
+{\bf 15}(7):5249-5262.
+}
+
+\end{document}
