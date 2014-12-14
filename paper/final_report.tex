@@ -153,22 +153,105 @@ difficult task. The volume of speech and how it changes over time (called the
 envelope) is also very important, as well as the duration and rhythm of
 silences. In fact, properly modeling just the envelope and silences can
 create something that is surprisingly speech-like, even if the content
-itself is white-noise or something as basic as a summation of a small number
+itself is white-noise or as basic as a summation of a small number
 of sine waves.
 
-\subsection{Headings: second level}
+\subsection{Raw Input}
+Raw input is a bit of a misnomer, as even in the "raw" case there are still
+several things that must be done. Since the files are originally stored
+as signed 16-bit values, the first step is to divide every sample by 2\^15.
+This normalizes the input as floating point values in the (-1, 1) range, which
+is normally small enough to avoid numerical problems. The other important
+preprocessing step is to break the continuous speech into a number of
+overlapping frames. The length and amount of overlap in the frame sizes can
+vary, but a typical rule of thumb is 50\% overlap with frame sizes
+capturing somewhere between 4 and 40 milliseconds of sound.
+\par
+For 16000 Hz,
+this points to a frame size between 64 samples and 640 samples, with between
+32 and 320 sample overlap. These numbers are chosen due to the dynamics of
+speech, as each phoneme lasts (on average) about 10 milliseconds. Overlap is
+crucial to providing context for the frame and relating it to what has been
+seen, but there is a computational tradeoff as more overlap means
+a larger computational overhead will be spent on redundant information.
 
-Second level headings are lower case (except for first word and proper nouns),
-flush left, bold and in point size 10. One line space before the second level
-heading and 1/2~line space after the second level heading.
+\subsection{Sinusoidal Modeling}
+The Discrete Fourier Transform (and the temporal version, known as the STFT)
+has a long history in the realm of speech
+processing. By taking the primary signal and breaking it down into a set of
+sinusoids at different frequencies, we usually find the signal to be sparse in
+frequency space. The transform has 
+additional nice properties such as being orthogonal and linear. However, for
+speech generation, a full Fourier basis is still very difficult to model, but it
+is possible to reduce this set down to a few frequencies which contribute
+most to making things sound
+"speech-like". By estimating just 4 frequencies and their respective
+gain it is possible to get a rough approximation of speech, which should be
+easier to model than either the original timeseries or the full Fourier
+transformed version.
 
-\subsubsection{Headings: third level}
-
-Third level headings are lower case (except for first word and proper nouns),
-flush left, bold and in point size 10. One line space before the third level
-heading and 1/2~line space after the third level heading.
-
+\subsubsection{Linear Predictive Coding}
+Linear Predictive Coding (LPC) [Atal1978] is a classic approach for robust
+encoding and decoding of speech signals. It was originally designed for
+use in low-bandwidth communications, but has also become the defacto
+standard for reconstruction quality due to Atal’s follow up work in perceptual
+audio coding. It is also the one of the compression techniques specified in
+the GSM phone standard. 
+\par
+The physical model used for LPC comes from observing that the human vocal
+system is similar to a long pipe (the vocal tract) excited by a buzzer (the
+tongue), with intermediate clicks and hisses (interactions of the tongue,
+teeth, and lips). To create an approximate model in this way, a long speech
+signal is broken into a series of overlapping frames. Each frame is modeled by
+a linear component (an FIR filter), gain, and a residual which is not modeled
+by the linear filter. This coded representation of the speech can then be
+compressed and transmitted, or simply transmitted directly. 
+\par
+There are two primary modes for using decoding LPC: pure synthesis,
+and residual driven synthesis. Pure synthesis does not use the residual
+component during reconstruction. Instead, it uses an additional estimation of
+whether the particular frame of speech was voiced, or unvoiced. It needs
+estimation of the fundamental frequency of the frame. These are related to
+the actual phoneme spoken, and many methods exist to make these measurements.
+A signal (Gaussian random noise in the case of unvoiced, a pulse train at the
+fundamental frequency for voiced) is then run through the filter given by the
+LPC coefficients. In theory, the pulse wave is supposed to approximate
+the glottal pulse created by the movement of the vocal tract, but the
+approximation is quite crude and results in very “robotic” speech.
+\par
+The second mode of decoding LPC is residual driven synthesis. In this case,
+the residual excitation is used to drive the filter given by the LPC
+coefficients. In the case where all of the residual is kept, the
+reconstruction is nearly perfect. By compressing this residual, we have the
+ability to trade reconstruction quality for feature
+dimensionality reduction. We strongly prefer the residual driven synthesis
+mode, as this will give the most realistic reconstruction
+and we are not particularly concerned with the ”bandwidth” cost of generating
+a few extra features.
+\par
+A few key extensions will further help us generate good LPC coefficients
+from our models. The filter coefficients can be represented as Line Spectral
+Frequencies (LSFs) which are much more robust to error, when compared to
+the “raw” representation. This improvement will help the quality of generated
+samples, by allowing the generated coefficients to have small errors
+without large changes in the synthesized audio.
 \section{Recurrent Architectures}
+Recurrent neural networks are approximators for arbitrary dynamic systems.
+This makes this type of architecture ideal for modeling data with rich
+structure in both time and frequency, such as music or speech. The downside
+to the raw power of recurrent neural networks is that training can be quite
+difficult, and just like feedforward neural networks the hyperparamers
+used for learning rate, learning rule, initialization, activation function, and
+size of network have a massive impact on the performance for any specific
+problem. The additional difficulty of using recurrent neural networks for
+generation is that there needs to an element of randomness. The default cost
+is deterministic based on the input, but we would really prefer to "seed" the
+input and generate different outputs. This can be done by having the RNN learn
+to predict the mean and variance parameters for a mixture of Gaussians,
+rather than directly learning the output sequence. 
+\par
+For the recurrent model, the same architecture is used for each
+representation. 
 \section{Results}
 \section{Conclusion}
 
